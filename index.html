@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe Modern - Pro Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: radial-gradient(circle at top right, #1e1b4b, #0f172a);
+            min-height: 100vh;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .cell {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            aspect-ratio: 1 / 1;
+        }
+
+        .cell:hover:not(.occupied) {
+            background: rgba(255, 255, 255, 0.1);
+            transform: scale(1.02);
+        }
+
+        .cell.occupied {
+            cursor: default;
+        }
+
+        .x-mark {
+            color: #f43f5e;
+            text-shadow: 0 0 20px rgba(244, 63, 94, 0.5);
+        }
+
+        .o-mark {
+            color: #38bdf8;
+            text-shadow: 0 0 20px rgba(56, 189, 248, 0.5);
+        }
+
+        .winner-line {
+            background: linear-gradient(90deg, #f43f5e, #38bdf8);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        }
+
+        .active-player {
+            border-bottom: 4px solid #8b5cf6;
+            transform: translateY(-5px);
+        }
+
+        .btn-action {
+            transition: all 0.2s;
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+
+        .floating {
+            animation: floating 3s ease-in-out infinite;
+        }
+
+        @keyframes floating {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .hidden-screen {
+            display: none !important;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+
+    <div id="setup-screen" class="max-w-md w-full glass p-8 rounded-3xl text-center animate__animated animate__fadeIn">
+        <h1 class="text-5xl font-extrabold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-rose-500 to-sky-400">TIC TAC TOE</h1>
+        <p class="text-slate-400 mb-8 font-light">El primero en ganar 3 rondas domina el juego</p>
+        
+        <div class="space-y-4">
+            <button onclick="startGame('ai')" class="w-full py-4 rounded-xl btn-action font-bold text-lg flex items-center justify-center gap-3">
+                <span>🤖</span> CONTRA LA IA
+            </button>
+            <button onclick="startGame('local')" class="w-full py-4 rounded-xl glass border-slate-700 hover:bg-slate-800 font-bold text-lg flex items-center justify-center gap-3">
+                <span>👥</span> MULTIJUGADOR LOCAL
+            </button>
+            <button onclick="showOnlineMenu()" class="w-full py-4 rounded-xl glass border-slate-700 hover:bg-slate-800 font-bold text-lg flex items-center justify-center gap-3 opacity-80">
+                <span>🌐</span> MODO ONLINE
+            </button>
+        </div>
+    </div>
+
+    <div id="online-screen" class="max-w-md w-full glass p-8 rounded-3xl text-center hidden-screen animate__animated animate__fadeIn">
+        <h2 class="text-3xl font-bold mb-6 text-sky-400">Multijugador Online</h2>
+        <input type="text" id="room-id" placeholder="ID de la sala" class="w-full p-4 mb-4 rounded-xl bg-slate-900 border border-slate-700 text-center text-white focus:outline-none focus:border-sky-500">
+        <div class="flex gap-2 mb-4">
+            <button onclick="simulateOnlineJoin()" class="flex-1 py-3 rounded-xl btn-action font-bold">UNIRSE</button>
+            <button onclick="simulateOnlineJoin()" class="flex-1 py-3 rounded-xl glass font-bold">CREAR</button>
+        </div>
+        <button onclick="backToMenu()" class="text-slate-500 hover:text-white transition-colors">Volver al inicio</button>
+    </div>
+
+    <div id="game-screen" class="w-full max-w-lg hidden-screen animate__animated animate__fadeIn">
+        <div class="flex justify-between mb-8 gap-4">
+            <div id="p1-card" class="glass flex-1 p-4 rounded-2xl transition-all duration-500 text-center relative overflow-hidden">
+                <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">Jugador 1</div>
+                <div class="text-2xl font-bold text-rose-500">❌</div>
+                <div id="p1-score" class="text-4xl font-black mt-1">0</div>
+                <div id="p1-round-wins" class="flex justify-center gap-1 mt-2">
+                    <div class="w-2 h-2 rounded-full bg-slate-700"></div>
+                    <div class="w-2 h-2 rounded-full bg-slate-700"></div>
+                    <div class="w-2 h-2 rounded-full bg-slate-700"></div>
+                </div>
+            </div>
+
+            <div class="flex flex-col justify-center items-center px-2">
+                <div class="text-slate-500 font-black text-xl italic">VS</div>
+            </div>
+
+            <div id="p2-card" class="glass flex-1 p-4 rounded-2xl transition-all duration-500 text-center relative overflow-hidden">
+                <div id="p2-label" class="text-xs text-slate-400 uppercase tracking-widest mb-1">IA</div>
+                <div class="text-2xl font-bold text-sky-400">⭕</div>
+                <div id="p2-score" class="text-4xl font-black mt-1">0</div>
+                <div id="p2-round-wins" class="flex justify-center gap-1 mt-2">
+                    <div class="w-2 h-2 rounded-full bg-slate-700"></div>
+                    <div class="w-2 h-2 rounded-full bg-slate-700"></div>
+                    <div class="w-2 h-2 rounded-full bg-slate-700"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="board" class="grid grid-cols-3 gap-4 glass p-4 rounded-3xl relative">
+            <div data-index="0" class="cell glass flex items-center justify-center text-5xl font-black rounded-2xl cursor-pointer"></div>
+            <div data-index="1" class="cell glass flex items-center justify-center text-5xl font-black rounded-2xl cursor-pointer"></div>
+            <div data-index="2" class="cell glass flex items-center justify-center text-5xl font-black rounded-2xl cursor-pointer"></div>
+            <div data-index="3" class="cell glass flex items-center justify-center text-5xl font-black rounded-2xl cursor-pointer"></div>
+            <div data-index="4" class="cell glass flex items-center justify-center text-5xl font-black rounded-2xl cursor-pointer"></div>
+            <div data-index="5" class="cell glass flex items-center justify-center text-5xl font-black rounded-2xl cursor-pointer"></div>
+            <div data-index="6" class="cell glass flex items-center justify-center text-5xl font-black rounded-2xl cursor-pointer"></div>
+            <div data-index="7" class="cell glass flex items-center justify-center text-5xl font-black rounded-2xl cursor-pointer"></div>
+            <div data-index="8" class="cell glass flex items-center justify-center text-5xl font-black rounded-2xl cursor-pointer"></div>
+        </div>
+
+        <div class="mt-8 flex justify-center gap-4">
+            <button onclick="backToMenu()" class="p-4 rounded-xl glass text-slate-400 hover:text-white transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            </button>
+            <button onclick="restartGame()" class="flex-1 p-4 rounded-xl btn-action font-bold uppercase tracking-widest">Reiniciar Partida</button>
+        </div>
+    </div>
+
+    <div id="modal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden-screen p-6">
+        <div class="glass p-10 rounded-3xl max-w-sm w-full text-center animate__animated animate__zoomIn">
+            <div id="modal-icon" class="text-7xl mb-4 floating">🏆</div>
+            <h2 id="modal-title" class="text-3xl font-bold mb-2">¡Ganador!</h2>
+            <p id="modal-message" class="text-slate-400 mb-8">El Jugador 1 ha ganado la ronda.</p>
+            <button id="modal-btn" onclick="closeModal()" class="w-full py-4 rounded-xl btn-action font-bold">CONTINUAR</button>
+        </div>
+    </div>
+
+    <script>
+        let board = ['', '', '', '', '', '', '', '', ''];
+        let currentPlayer = 'X';
+        let gameActive = true;
+        let gameMode = 'ai'; 
+        let scores = { X: 0, O: 0 };
+        let roundWins = { X: 0, O: 0 };
+        const winConditions = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8],
+            [0, 3, 6], [1, 4, 7], [2, 5, 8],
+            [0, 4, 8], [2, 4, 6]
+        ];
+
+        const boardElement = document.getElementById('board');
+        const cells = document.querySelectorAll('.cell');
+        const p1Card = document.getElementById('p1-card');
+        const p2Card = document.getElementById('p2-card');
+
+        function startGame(mode) {
+            gameMode = mode;
+            document.getElementById('setup-screen').classList.add('hidden-screen');
+            document.getElementById('online-screen').classList.add('hidden-screen');
+            document.getElementById('game-screen').classList.remove('hidden-screen');
+            document.getElementById('p2-label').innerText = mode === 'ai' ? 'IA' : 'JUGADOR 2';
+            resetRound();
+            updateScoresUI();
+        }
+
+        function showOnlineMenu() {
+            document.getElementById('setup-screen').classList.add('hidden-screen');
+            document.getElementById('online-screen').classList.remove('hidden-screen');
+        }
+
+        function backToMenu() {
+            document.getElementById('game-screen').classList.add('hidden-screen');
+            document.getElementById('online-screen').classList.add('hidden-screen');
+            document.getElementById('setup-screen').classList.remove('hidden-screen');
+            resetGameSystem();
+        }
+
+        function simulateOnlineJoin() {
+            const id = document.getElementById('room-id').value;
+            if(!id) return alert('Ingresa un ID de sala');
+            startGame('local'); 
+            alert('Conectado a la sala: ' + id + '. Jugando en modo Online Simulador.');
+        }
+
+        cells.forEach(cell => {
+            cell.addEventListener('click', () => handleCellClick(cell));
+        });
+
+        function handleCellClick(cell) {
+            const index = cell.getAttribute('data-index');
+            if (board[index] !== '' || !gameActive) return;
+
+            makeMove(index, currentPlayer);
+
+            if (gameActive && gameMode === 'ai' && currentPlayer === 'O') {
+                setTimeout(aiMove, 500);
+            }
+        }
+
+        function makeMove(index, player) {
+            board[index] = player;
+            const cell = cells[index];
+            cell.innerText = player;
+            cell.classList.add('occupied');
+            cell.classList.add(player === 'X' ? 'x-mark' : 'o-mark');
+            cell.classList.add('animate__animated', 'animate__bounceIn');
+
+            checkResult();
+            if (gameActive) {
+                currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                updateTurnIndicator();
+            }
+        }
+
+        function updateTurnIndicator() {
+            if (currentPlayer === 'X') {
+                p1Card.classList.add('active-player');
+                p2Card.classList.remove('active-player');
+            } else {
+                p2Card.classList.add('active-player');
+                p1Card.classList.remove('active-player');
+            }
+        }
+
+        function aiMove() {
+            if (!gameActive) return;
+            const bestMove = getBestMove();
+            makeMove(bestMove, 'O');
+        }
+
+        function getBestMove() {
+            let bestScore = -Infinity;
+            let move;
+            for (let i = 0; i < 9; i++) {
+                if (board[i] === '') {
+                    board[i] = 'O';
+                    let score = minimax(board, 0, false);
+                    board[i] = '';
+                    if (score > bestScore) {
+                        bestScore = score;
+                        move = i;
+                    }
+                }
+            }
+            return move;
+        }
+
+        function minimax(tempBoard, depth, isMaximizing) {
+            const winner = checkWinnerForMinimax();
+            if (winner === 'O') return 10;
+            if (winner === 'X') return -10;
+            if (board.every(cell => cell !== '')) return 0;
+
+            if (isMaximizing) {
+                let bestScore = -Infinity;
+                for (let i = 0; i < 9; i++) {
+                    if (tempBoard[i] === '') {
+                        tempBoard[i] = 'O';
+                        let score = minimax(tempBoard, depth + 1, false);
+                        tempBoard[i] = '';
+                        bestScore = Math.max(score, bestScore);
+                    }
+                }
+                return bestScore;
+            } else {
+                let bestScore = Infinity;
+                for (let i = 0; i < 9; i++) {
+                    if (tempBoard[i] === '') {
+                        tempBoard[i] = 'X';
+                        let score = minimax(tempBoard, depth + 1, true);
+                        tempBoard[i] = '';
+                        bestScore = Math.min(score, bestScore);
+                    }
+                }
+                return bestScore;
+            }
+        }
+
+        function checkWinnerForMinimax() {
+            for (let condition of winConditions) {
+                if (board[condition[0]] && board[condition[0]] === board[condition[1]] && board[condition[0]] === board[condition[2]]) {
+                    return board[condition[0]];
+                }
+            }
+            return null;
+        }
+
+        function checkResult() {
+            let roundWon = false;
+            let winningLine = [];
+
+            for (let condition of winConditions) {
+                const [a, b, c] = condition;
+                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                    roundWon = true;
+                    winningLine = condition;
+                    break;
+                }
+            }
+
+            if (roundWon) {
+                gameActive = false;
+                roundWins[currentPlayer]++;
+                updateScoresUI();
+                highlightWinner(winningLine);
+                
+                if (roundWins[currentPlayer] === 3) {
+                    scores[currentPlayer]++;
+                    setTimeout(() => showFinalWinner(currentPlayer), 600);
+                } else {
+                    setTimeout(() => showRoundWinner(currentPlayer), 600);
+                }
+                return;
+            }
+
+            if (!board.includes('')) {
+                gameActive = false;
+                setTimeout(() => showModal('⚖️', 'Empate', 'Nadie gana esta ronda.'), 600);
+            }
+        }
+
+        function highlightWinner(line) {
+            line.forEach(index => {
+                cells[index].classList.add('bg-white/20', 'animate__pulse');
+            });
+        }
+
+        function updateScoresUI() {
+            document.getElementById('p1-score').innerText = scores.X;
+            document.getElementById('p2-score').innerText = scores.O;
+
+            const updateDots = (playerId, count) => {
+                const container = document.getElementById(`${playerId}-round-wins`);
+                const dots = container.querySelectorAll('div');
+                dots.forEach((dot, i) => {
+                    if (i < count) {
+                        dot.className = `w-2 h-2 rounded-full ${playerId === 'p1' ? 'bg-rose-500' : 'bg-sky-400'} shadow-[0_0_8px_rgba(255,255,255,0.5)]`;
+                    } else {
+                        dot.className = 'w-2 h-2 rounded-full bg-slate-700';
+                    }
+                });
+            };
+
+            updateDots('p1', roundWins.X);
+            updateDots('p2', roundWins.O);
+        }
+
+        function showRoundWinner(player) {
+            const name = player === 'X' ? 'Jugador 1' : (gameMode === 'ai' ? 'IA' : 'Jugador 2');
+            showModal('⭐', `Ronda para ${name}`, `${name} ha ganado esta ronda. Necesita ganar 3 para la victoria total.`);
+        }
+
+        function showFinalWinner(player) {
+            const name = player === 'X' ? 'Jugador 1' : (gameMode === 'ai' ? 'IA' : 'Jugador 2');
+            showModal('🏆', `¡CAMPEÓN!`, `${name} ha ganado la partida al completar 3 rondas ganadas.`);
+            roundWins = { X: 0, O: 0 };
+        }
+
+        function showModal(icon, title, message) {
+            document.getElementById('modal-icon').innerText = icon;
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+            document.getElementById('modal').classList.remove('hidden-screen');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden-screen');
+            resetRound();
+        }
+
+        function resetRound() {
+            board = ['', '', '', '', '', '', '', '', ''];
+            gameActive = true;
+            currentPlayer = 'X';
+            cells.forEach(cell => {
+                cell.innerText = '';
+                cell.className = 'cell glass flex items-center justify-center text-5xl font-black rounded-2xl cursor-pointer';
+            });
+            updateTurnIndicator();
+            updateScoresUI();
+        }
+
+        function restartGame() {
+            roundWins = { X: 0, O: 0 };
+            resetRound();
+        }
+
+        function resetGameSystem() {
+            scores = { X: 0, O: 0 };
+            roundWins = { X: 0, O: 0 };
+            resetRound();
+        }
+
+        updateTurnIndicator();
+    </script>
+</body>
+</html>
